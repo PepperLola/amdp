@@ -17,7 +17,7 @@
     <string>com.github.pepperlola.amdp</string>
     <key>ProgramArguments</key>
     <array>
-        <string>PATH</string>
+        <string>PATH</string> <!-- REPLACE PATH HERE -->
     </array>
     <key>RunAtLoad</key>
     <true/>

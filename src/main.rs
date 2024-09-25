@@ -8,7 +8,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-const CLIENT_ID: u64 = 0; // change this
+const CLIENT_ID: u64 = 0;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct SongDetails {
@@ -76,7 +76,6 @@ async fn main() -> anyhow::Result<()> {
 
     assert!(Client::is_ready());
 
-    let mut album_opt: Option<AlbumResult> = None;
     let mut current_song_name: String = String::new();
 
     let mut song_end: u64 = 0;
@@ -100,11 +99,12 @@ async fn main() -> anyhow::Result<()> {
         if let Some(song) = &song_opt {
             let secs = current_time.duration_since(UNIX_EPOCH).unwrap().as_secs();
             let new_end: i128 = ((secs + (song.duration - song.position) as u64) * 1000).into();
-            if song.name != current_song_name || new_end - (song_end as i128) > 1000 {
-                if song.name != current_song_name {
-                    current_song_name = String::from(&song.name);
-                    album_opt = fetch_album_cover(&song.artist, &song.album, &song.name).await?;
-                }
+            if song.state == "paused" {
+                println!("{:?}", song);
+                let _ = drpc.clear_activity();
+            } else if new_end - (song_end as i128) > 1000 || song.name != current_song_name {
+                current_song_name = String::from(&song.name);
+                let album_opt = fetch_album_cover(&song.artist, &song.album, &song.name).await?;
                 println!("NOW PLAYING: {}", &song.name);
                 // println!("NEW: {} OLD: {}", new_end, song_end);
                 if let (Some(song), Some(album)) = (&song_opt, &album_opt) {

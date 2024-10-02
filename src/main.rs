@@ -20,7 +20,7 @@ struct SongDetails {
     state: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct ApiResponse {
     resultCount: usize,
     results: Vec<AlbumResult>,
@@ -29,13 +29,16 @@ struct ApiResponse {
 #[derive(Deserialize, Debug, Clone)]
 #[allow(unused)]
 struct AlbumResult {
+    trackName: String,
     collectionName: String,
     artistName: String,
     artworkUrl100: String,
     artworkUrl600: Option<String>,
+    collectionId: u32,
+    trackId: u32,
 }
 
-async fn fetch_album_cover(
+async fn fetch_album(
     artist: &str,
     album: &str,
     song: &str,
@@ -48,12 +51,26 @@ async fn fetch_album_cover(
     );
 
     let response = reqwest::get(&url).await?.json::<ApiResponse>().await?;
+    let filtered: Vec<&AlbumResult> = response
+        .results
+        .iter()
+        .filter(|a| a.trackName == song)
+        .collect();
 
     if response.resultCount > 0 {
-        Ok(Some(response.results[0].clone()))
+        Ok(Some(filtered[0].clone()))
     } else {
         Ok(None)
     }
+}
+
+fn generate_share_link(album: &AlbumResult) -> String {
+    format!(
+        "https://music.apple.com/us/album/{}/{}?i={}&ls=1&app=music",
+        album.trackName.replace(' ', "-"),
+        album.collectionId,
+        album.trackId
+    )
 }
 
 #[tokio::main]
@@ -104,12 +121,13 @@ async fn main() -> anyhow::Result<()> {
                 let _ = drpc.clear_activity();
             } else if new_end - (song_end as i128) > 1000 || song.name != current_song_name {
                 current_song_name = String::from(&song.name);
-                let album_opt = fetch_album_cover(&song.artist, &song.album, &song.name).await?;
+                let album_opt = fetch_album(&song.artist, &song.album, &song.name).await?;
                 println!("NOW PLAYING: {}", &song.name);
                 // println!("NEW: {} OLD: {}", new_end, song_end);
                 if let (Some(song), Some(album)) = (&song_opt, &album_opt) {
                     let song_started = (secs - song.position as u64) * 1000;
                     song_end = (secs + (song.duration - song.position) as u64) * 1000;
+                    let song_url = generate_share_link(album);
                     drpc.set_activity(|act| {
                         act.state(&song.artist)
                             ._type(discord_presence::models::ActivityType::Listening)
@@ -122,7 +140,9 @@ async fn main() -> anyhow::Result<()> {
                                 )
                                 .large_text(&song.album)
                             })
-                        // .append_buttons(|button| button.label("Click Me!").url("https://duckduckgo.com"))
+                            .append_buttons(|button| {
+                                button.label("Open in Apple Music").url(song_url)
+                            })
                     })
                     .expect("Failed to set activity");
                 }

@@ -40,15 +40,15 @@ struct AlbumResult {
 
 async fn fetch_album(
     artist: &str,
-    album: &str,
     song: &str,
 ) -> anyhow::Result<Option<AlbumResult>, Error> {
     let url = format!(
-        "https://itunes.apple.com/search?term={}+{}+{}&entity=song",
+        "https://itunes.apple.com/search?term={}+{}&entity=song",
         artist.replace(' ', "+"),
-        album.replace(' ', "+"),
         song.replace(' ', "+")
     );
+
+    // TODO: check all pages
 
     let response = reqwest::get(&url).await?.json::<ApiResponse>().await?;
     let filtered: Vec<&AlbumResult> = response
@@ -56,9 +56,11 @@ async fn fetch_album(
         .iter()
         .filter(|a| a.trackName == song)
         .collect();
-
-    if response.resultCount > 0 {
+    
+    if filtered.len() > 0 {
         Ok(Some(filtered[0].clone()))
+    } else if response.results.len() > 0 {
+        Ok(Some(response.results[0].clone()))
     } else {
         Ok(None)
     }
@@ -121,10 +123,10 @@ async fn main() -> anyhow::Result<()> {
                 let _ = drpc.clear_activity();
             } else if new_end - (song_end as i128) > 1000 || song.name != current_song_name {
                 current_song_name = String::from(&song.name);
-                let album_opt = fetch_album(&song.artist, &song.album, &song.name).await?;
+                let album_opt = fetch_album(&song.artist, &song.name).await?;
                 println!("NOW PLAYING: {}", &song.name);
                 // println!("NEW: {} OLD: {}", new_end, song_end);
-                if let (Some(song), Some(album)) = (&song_opt, &album_opt) {
+                if let Some(album) = &album_opt {
                     let song_started = (secs - song.position as u64) * 1000;
                     song_end = (secs + (song.duration - song.position) as u64) * 1000;
                     let song_url = generate_share_link(album);

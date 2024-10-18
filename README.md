@@ -4,7 +4,7 @@
 
 ## Setup
 1. Clone the repository
-2. Create a [Discord app](https://discord.com/developers/applications/) named `Apple Music`, copy the client ID into `src/main.rs` and paste it into the `CLIENT_ID` constant
+2. Create a [Discord app](https://discord.com/developers/applications/) named `Apple Music`, create a file called `.env` in the root of the project, and add the line `DISCORD_ID=<Discord ID>` with the ID from your Discord app
 3. Install the dependencies, then run `cargo build --path .` in the project directory
 4. Create a new file in `~/Library/LaunchAgents/` called `com.github.pepperlola.amdp.plist` and add the following
     - Be sure to replace `PATH` with the path to the executable that was installed, most likely `/Users/<username>/.cargo/bin/amdp`.

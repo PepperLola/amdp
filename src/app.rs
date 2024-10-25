@@ -153,7 +153,7 @@ impl App {
                     drpc.set_activity(|act| {
                         act.state(&data.artist)
                             ._type(discord_presence::models::ActivityType::Listening)
-                            .details(&data.name)
+                            .details(&format!("{: <3}", data.name))
                             .instance(true)
                             .timestamps(|t| t.start(data.start).end(data.end))
                             .assets(|a| {

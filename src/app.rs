@@ -80,6 +80,8 @@ impl AppState {
         };
 
         println!("TRANSITIONING TO PRESENCE FOR:\n{:?}", presence_data);
+        let share_link = generate_share_link(&presence_data.album);
+        println!("SHARE LINK: {}", share_link);
         Box::pin(self.presence(app, presence_data)).await
     }
 
@@ -150,6 +152,7 @@ impl App {
         match &self.state {
             AppState::Presence(data) => {
                 if let Some(drpc) = &mut self.client {
+                    let share_link = generate_share_link(&data.album);
                     drpc.set_activity(|act| {
                         act.state(&data.artist)
                             ._type(discord_presence::models::ActivityType::Listening)
@@ -168,7 +171,7 @@ impl App {
                             .append_buttons(|button| {
                                 button
                                     .label("Open in Apple Music")
-                                    .url(generate_share_link(&data.album))
+                                    .url(&share_link)
                             })
                     })
                     .expect("Failed to set activity");

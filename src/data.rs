@@ -1,5 +1,6 @@
 use reqwest::Error;
 use serde::{Deserialize, Serialize};
+use urlencoding::encode;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SongDetails {
@@ -61,7 +62,7 @@ pub async fn fetch_album(
 pub fn generate_share_link(album: &AlbumResult) -> String {
     format!(
         "https://music.apple.com/us/album/{}/{}?i={}&ls=1&app=music",
-        album.trackName.replace(' ', "-"),
+        encode(&album.trackName.replace(' ', "-")),
         album.collectionId,
         album.trackId
     )

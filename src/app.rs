@@ -11,7 +11,7 @@ use std::{
 pub struct PresenceData {
     name: String,
     artist: String,
-    album: AlbumResult,
+    album: Option<AlbumResult>,
     start: u64,
     end: u64,
 }
@@ -37,11 +37,13 @@ impl AppState {
             String::from_utf8_lossy(&output.stderr).to_string()
         } else {
             // thread::sleep(time::Duration::from_secs(1));
+            println!("{:?}", output);
             return self.fault(app);
         };
 
         let song_res: Result<SongDetails, _> = serde_json::from_str(&str_data);
         if song_res.is_err() {
+            println!("{:?}", song_res);
             return self.fault(app);
         }
 
@@ -59,29 +61,35 @@ impl AppState {
 
         let album_res = fetch_album(&song.album, &song.artist, &song.name).await;
 
+        println!("{:?}", album_res);
         if album_res.is_err() {
             return self.fault(app);
         }
 
         let album_opt = album_res.unwrap();
 
-        if album_opt.is_none() {
-            return self.fault(app);
-        }
+        // if album_opt.is_none() {
+        //     println!("ALBUM OPT IS NONE");
+        //     return self.fault(app);
+        // }
 
-        let album = album_opt.unwrap();
+        // let album = album_opt.unwrap();
+
+        if let Some(album) = &album_opt {
+            let share_link = generate_share_link(&album);
+            println!("SHARE LINK: {}", share_link);
+        }
 
         let presence_data = PresenceData {
             name: song.name,
-            album,
+            album: album_opt,
             artist: song.artist,
             start,
             end,
         };
 
         println!("TRANSITIONING TO PRESENCE FOR:\n{:?}", presence_data);
-        let share_link = generate_share_link(&presence_data.album);
-        println!("SHARE LINK: {}", share_link);
+
         Box::pin(self.presence(app, presence_data)).await
     }
 
@@ -98,6 +106,7 @@ impl AppState {
         let str_data: String = if output.status.success() {
             String::from_utf8_lossy(&output.stderr).trim().to_string()
         } else {
+            println!("{:?}", output);
             return self.fault(app);
         };
 
@@ -152,27 +161,30 @@ impl App {
         match &self.state {
             AppState::Presence(data) => {
                 if let Some(drpc) = &mut self.client {
-                    let share_link = generate_share_link(&data.album);
                     drpc.set_activity(|act| {
-                        act.state(&data.artist)
+                        let mut activity = act.state(&data.artist)
                             ._type(discord_presence::models::ActivityType::Listening)
                             .details(&format!("{: <3}", data.name))
                             .instance(true)
-                            .timestamps(|t| t.start(data.start).end(data.end))
-                            .assets(|a| {
+                            .timestamps(|t| t.start(data.start).end(data.end));
+                        if let Some(album) = &data.album {
+                            let share_link = generate_share_link(&album);
+                            activity = activity.assets(|a| {
                                 a.large_image(
-                                    data.album
+                                    album
                                         .artworkUrl600
                                         .as_ref()
-                                        .unwrap_or(&data.album.artworkUrl100),
+                                        .unwrap_or(&album.artworkUrl100),
                                 )
-                                .large_text(&data.album.collectionName)
+                                .large_text(&album.collectionName)
                             })
                             .append_buttons(|button| {
                                 button
                                     .label("Open in Apple Music")
                                     .url(&share_link)
-                            })
+                            });
+                        }
+                        return activity;
                     })
                     .expect("Failed to set activity");
                 }
